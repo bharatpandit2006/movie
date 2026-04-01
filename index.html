@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>MovieVerse</title>
+    <link rel="stylesheet" href="Style.css" />
+</head>
+
+<body>
+
+    <header>
+        <h1>🎬 MovieExplorer</h1>
+    </header>
+
+    <!-- Controls -->
+    <div class="controls">
+        <input type="text" id="search" placeholder="🔍 Search movies..." />
+
+        <select id="filter">
+            <option value="">Filter</option>
+            <option value="old">Before 2010</option>
+            <option value="new">After 2010</option>
+        </select>
+
+        <select id="sort">
+            <option value="">Sort</option>
+            <option value="year-asc">Year Asc</option>
+            <option value="year-desc">Year Desc</option>
+        </select>
+    </div>
+
+    <!-- Movies -->
+    <div id="movie-container"></div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
