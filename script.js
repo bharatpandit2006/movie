@@ -1,37 +1,75 @@
-const API_KEY = "a5f8f988";
+const API_KEY = "8fca0339";
 const BASE_URL = "https://www.omdbapi.com/";
 
 const movieContainer = document.getElementById("movie-container");
 const searchInput = document.getElementById("search");
 const filterSelect = document.getElementById("filter");
 const sortSelect = document.getElementById("sort");
+const favBtn = document.getElementById("view-fav");
+const backBtn = document.getElementById("back-home");
+const toggleBtn = document.getElementById("theme-toggle");
 
 let allMovies = [];
 
-// Combined state
 let state = {
     search: "",
     filter: "",
     sort: ""
 };
 
-// Fetch movies
+// Fetch default movies
 async function getMovies() {
     movieContainer.innerHTML = "<h2>Loading...</h2>";
+    const res = await fetch(`${BASE_URL}?apikey=${API_KEY}&s=avengers`);
+    const data = await res.json();
+    allMovies = data.Search || [];
+    applyFeatures();
+}
 
-    try {
-        const res = await fetch(`${BASE_URL}?apikey=${API_KEY}&s=avengers`);
-        const data = await res.json();
+// Search
+async function searchMovies(query) {
+    movieContainer.innerHTML = "<h2>Loading...</h2>";
+    const res = await fetch(`${BASE_URL}?apikey=${API_KEY}&s=${query}`);
+    const data = await res.json();
 
-        allMovies = data.Search || [];
+    if (!data.Search) {
+        movieContainer.innerHTML = "<h2>No results</h2>";
+        return;
+    }
+
+    allMovies = data.Search;
+    applyFeatures();
+}
+
+// Favorites
+function getFavorites() {
+    return JSON.parse(localStorage.getItem("favorites")) || [];
+}
+
+function isFavorite(movie) {
+    return getFavorites().some(f => f.imdbID === movie.imdbID);
+}
+
+function toggleFavorite(movie) {
+    let favs = getFavorites();
+
+    if (isFavorite(movie)) {
+        favs = favs.filter(f => f.imdbID !== movie.imdbID);
+    } else {
+        favs.push(movie);
+    }
+
+    localStorage.setItem("favorites", JSON.stringify(favs));
+
+    // Refresh properly
+    if (backBtn.style.display === "block") {
+        displayMovies(favs);
+    } else {
         applyFeatures();
-
-    } catch (error) {
-        movieContainer.innerHTML = "<h2>Error loading data</h2>";
     }
 }
 
-// Display movies
+// Display
 function displayMovies(movies) {
     movieContainer.innerHTML = "";
 
@@ -40,57 +78,82 @@ function displayMovies(movies) {
         return;
     }
 
-    movies.map(movie => {
+    movies.forEach(movie => {
         const div = document.createElement("div");
         div.classList.add("movie");
 
-        // Poster logic (custom design)
-        const poster = movie.Poster !== "N/A"
-            ? `<img src="${movie.Poster}" />`
-            : `<div class="no-image">No Image</div>`;
+        const isFav = isFavorite(movie);
 
         div.innerHTML = `
-      ${poster}
-      <h3>${movie.Title}</h3>
-      <p>${movie.Year}</p>
+      ${movie.Poster !== "N/A"
+                ? `<img src="${movie.Poster}" />`
+                : `<div class="no-image">No Image</div>`}
+
+      <button class="fav-btn">${isFav ? "💖" : "🤍"}</button>
+
+      <div class="overlay">
+        <h3>${movie.Title}</h3>
+        <p>${movie.Year}</p>
+      </div>
     `;
+
+        const btn = div.querySelector(".fav-btn");
+        btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            toggleFavorite(movie);
+        });
 
         movieContainer.appendChild(div);
     });
 }
 
-// Apply combined features
+// Apply features
 function applyFeatures() {
     let result = [...allMovies];
 
-    // Search
     if (state.search) {
-        result = result.filter(movie =>
-            movie.Title.toLowerCase().includes(state.search)
+        result = result.filter(m =>
+            m.Title.toLowerCase().includes(state.search)
         );
     }
 
-    // Filter
     if (state.filter === "old") {
-        result = result.filter(movie => Number(movie.Year) < 2010);
-    } else if (state.filter === "new") {
-        result = result.filter(movie => Number(movie.Year) >= 2010);
+        result = result.filter(m => Number(m.Year) < 2010);
     }
 
-    // Sort
+    if (state.filter === "new") {
+        result = result.filter(m => Number(m.Year) >= 2010);
+    }
+
     if (state.sort === "year-asc") {
-        result.sort((a, b) => Number(a.Year) - Number(b.Year));
-    } else if (state.sort === "year-desc") {
-        result.sort((a, b) => Number(b.Year) - Number(a.Year));
+        result.sort((a, b) => a.Year - b.Year);
+    }
+
+    if (state.sort === "year-desc") {
+        result.sort((a, b) => b.Year - a.Year);
     }
 
     displayMovies(result);
 }
 
-// Event Listeners
-searchInput.addEventListener("input", () => {
-    state.search = searchInput.value.toLowerCase();
-    applyFeatures();
+// Debounce
+function debounce(fn, delay) {
+    let timer;
+    return (...args) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn(...args), delay);
+    };
+}
+
+const debouncedSearch = debounce((val) => {
+    state.search = val;
+    if (val) searchMovies(val);
+    else getMovies();
+}, 500);
+
+// Events
+searchInput.addEventListener("input", e => {
+    debouncedSearch(e.target.value.toLowerCase());
 });
 
 filterSelect.addEventListener("change", () => {
@@ -103,5 +166,23 @@ sortSelect.addEventListener("change", () => {
     applyFeatures();
 });
 
-// Initial load
+// Favorites view
+favBtn.addEventListener("click", () => {
+    const favs = getFavorites();
+    displayMovies(favs);
+    backBtn.style.display = "block";
+});
+
+// Back
+backBtn.addEventListener("click", () => {
+    backBtn.style.display = "none";
+    applyFeatures();
+});
+
+// Theme
+toggleBtn.addEventListener("click", () => {
+    document.body.classList.toggle("light");
+});
+
+// Init
 getMovies();
